@@ -1,0 +1,13 @@
+@()
+
+@main("Index") {
+<section id="content">
+    <ul>
+      <li><a href="@routes.HomeController.syncGet">Synchronous Call</a></li>
+      <li><a href="@routes.HomeController.futureGet">Calling a Future</a></li>
+      <li><a href="@routes.HomeController.brokenGet">Broken Future inside futures.delayed</a></li>
+      <li><a href="@routes.HomeController.fixedGet">Fixing the Future from inside futures.delayed</a></li>
+      <li><a href="@routes.HomeController.contextGet">Using a Futures.delayed that wraps Context</a></li>
+    </ul>
+</section>
+}

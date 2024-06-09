@@ -1,0 +1,16 @@
+<configuration>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%-5r %highlight(%-5level) trace_id=%mdc{trace_id} span_id=%mdc{span_id} %logger - %message%n%xException{10}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="io.opentelemetry" level="WARN" />
+    <logger name="services" level="WARN" />
+
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+</configuration>
