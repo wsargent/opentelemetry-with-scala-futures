@@ -26,6 +26,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(impl
       logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
       throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
     }
+    logger.debug(s"assertSpan: span = ${span}")
     span
   }
 
@@ -33,8 +34,15 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(impl
   // The simplest case: synchronous methods.
 
   def getCurrentTime(implicit enc: sourcecode.Enclosing, line: sourcecode.Line): Long = {
-    assertSpan().setAttribute("success", true)
-    
+    val span = assertSpan()
+
+    if (span.isRecording) {
+      span.setAttribute("success", true)
+      span.addEvent("success")
+    } else {
+      logger.warn(s"getCurrentTime: span is read only! ${span}")
+    }
+
     val result = System.currentTimeMillis()
     logger.debug(s"getCurrentTime: $result")
     result

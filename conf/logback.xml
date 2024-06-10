@@ -11,8 +11,8 @@
         </encoder>
     </appender>
 
-    <logger name="io.opentelemetry" level="INFO" />
-    <logger name="services" level="INFO" />
+    <logger name="io.opentelemetry" level="DEBUG" />
+    <logger name="services" level="DEBUG" />
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />
