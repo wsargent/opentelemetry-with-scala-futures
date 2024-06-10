@@ -33,8 +33,8 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(impl
   // The simplest case: synchronous methods.
 
   def getCurrentTime(implicit enc: sourcecode.Enclosing, line: sourcecode.Line): Long = {
-    assertSpan()
-
+    assertSpan().setAttribute("success", true)
+    
     val result = System.currentTimeMillis()
     logger.debug(s"getCurrentTime: $result")
     result

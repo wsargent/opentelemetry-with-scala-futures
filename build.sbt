@@ -24,12 +24,12 @@ lazy val root = (project in file("."))
     ),
     bashScriptExtraDefines +=
       """
-      |addJava "-Dotel.service.name=opentelemetry-with-scala-futures",
-      |addJava "-Dotel.traces.exporter=debug",
-      |addJava "-Dotel.metrics.exporter=none",
-      |addJava "-Dotel.logs.exporter=none",
-      |addJava "-Dotel.javaagent.debug=true",
-      |addJava "-Dotel.javaagent.logging=simple",
+      |addJava "-Dotel.service.name=opentelemetry-with-scala-futures"
+      |addJava "-Dotel.traces.exporter=logging"
+      |addJava "-Dotel.metrics.exporter=none"
+      |addJava "-Dotel.logs.exporter=none"
+      |addJava "-Dotel.javaagent.debug=true"
+      |addJava "-Dotel.javaagent.logging=application"
       |addJava "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
       |addJava "-Dplay.http.secret.key=a-sacrifice-to-the-entropy-gods-awefawefawefawefawef"
       |""".stripMargin,
