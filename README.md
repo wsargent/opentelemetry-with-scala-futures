@@ -225,6 +225,8 @@ class MyServiceSpec {
 }
 ```
 
+### Delayed Futures
+
 So far, so good.  But what if we change the code to delay the future slightly?  Using the `play.api.libs.concurrent.Futures` class, we'll delay the future by 10 milliseconds:
 
 ```scala
