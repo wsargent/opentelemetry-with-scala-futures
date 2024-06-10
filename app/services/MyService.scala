@@ -2,6 +2,7 @@ package services
 
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.{Span, StatusCode}
+import io.opentelemetry.context.Context
 import play.api.libs.concurrent.Futures
 import sourcecode.Enclosing
 
@@ -17,11 +18,12 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(impl
   private val logger = org.slf4j.LoggerFactory.getLogger(classOf[MyService])
 
   private def assertSpan()(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
-    assertSpan(Span.current)
+    assertSpan(Span.fromContextOrNull(Context.current))
   }
 
   private def assertSpan(span: Span)(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
-    if (!span.isRecording) {
+    if (span == null) {
+      logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
       throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
     }
     span
@@ -34,7 +36,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(impl
     assertSpan()
 
     val result = System.currentTimeMillis()
-    logger.debug(s"Rendered: $result")
+    logger.debug(s"getCurrentTime: $result")
     result
   }
 

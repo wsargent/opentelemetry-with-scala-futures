@@ -8,6 +8,7 @@ import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.test.Injecting
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 class MyServiceSpec extends PlaySpec with Matchers with GuiceOneServerPerSuite with Injecting with ScalaFutures with TryValues {
@@ -46,10 +47,14 @@ class MyServiceSpec extends PlaySpec with Matchers with GuiceOneServerPerSuite w
       val myService = inject[MyService]
       val span = tracer.spanBuilder("futureCurrentTime").startSpan()
       val scope = span.makeCurrent()
-      whenReady(myService.futureCurrentTime) {
+      try {
+        val f = myService.futureCurrentTime
+        f.onComplete(_ => span.end())(ExecutionContext.global)
+        whenReady(f) {
+          _ > 0 mustBe true
+        }
+      } finally {
         scope.close()
-        span.end()
-        _ > 0 mustBe true
       }
     }
 
