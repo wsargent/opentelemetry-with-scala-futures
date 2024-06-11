@@ -12,6 +12,12 @@ class HomeController @Inject()(service: MyService, cc: ControllerComponents)(imp
   def index = Action {
     Ok(views.html.index())
   }
+  
+  def cat: Action[AnyContent] = Action.async {
+    service.getCat.map { bytes =>
+      Ok(bytes).as("image/jpeg")
+    }
+  }
 
   def syncGet: Action[AnyContent] = Action {
     val result = service.currentTimeWithSpan

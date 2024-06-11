@@ -35,12 +35,14 @@ lazy val root = (project in file("."))
       |""".stripMargin,
     libraryDependencies ++= Seq(
       guice,
+      ws,
       "com.lihaoyi" %% "sourcecode" % "0.4.2",
       "io.opentelemetry" % "opentelemetry-api" % "1.38.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.38.0",
       "io.opentelemetry" % "opentelemetry-exporter-logging" % "1.38.0",
       "io.opentelemetry.semconv" % "opentelemetry-semconv" % "1.25.0-alpha",
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.38.0",
+      "io.opentelemetry.instrumentation" % "opentelemetry-logback-mdc-1.0" % "2.4.0-alpha" % "runtime",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
     ),
     scalacOptions ++= Seq(

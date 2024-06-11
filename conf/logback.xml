@@ -4,6 +4,9 @@
         <resetJUL>true</resetJUL>
     </contextListener>
 
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.mdc.v1_0.OpenTelemetryAppender">
+        <appender-ref ref="STDOUT"/>
+    </appender>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -15,7 +18,7 @@
     <logger name="services" level="DEBUG" />
 
     <root level="INFO">
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="OTEL" />
     </root>
 
 </configuration>

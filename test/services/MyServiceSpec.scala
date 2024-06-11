@@ -4,11 +4,12 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import org.scalatest.TryValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.time.{Second, Seconds, Span}
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.test.Injecting
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 class MyServiceSpec extends PlaySpec with Matchers with GuiceOneServerPerSuite with Injecting with ScalaFutures with TryValues {
@@ -74,6 +75,14 @@ class MyServiceSpec extends PlaySpec with Matchers with GuiceOneServerPerSuite w
       val myService = inject[MyService]
       whenReady(myService.contextAwareDelayedCurrentTime) {
         _ > 0 mustBe true
+      }
+    }
+
+    "work getting a cat" in {
+      val myService = inject[MyService]
+      implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(15, Seconds), Span(1, Second))
+      whenReady(myService.getCat) { byteString =>
+        byteString must not be(empty)
       }
     }
 

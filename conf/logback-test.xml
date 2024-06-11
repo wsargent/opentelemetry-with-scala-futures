@@ -3,6 +3,10 @@
         <resetJUL>true</resetJUL>
     </contextListener>
 
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.mdc.v1_0.OpenTelemetryAppender">
+        <appender-ref ref="STDOUT"/>
+    </appender>
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%-5r %highlight(%-5level) trace_id=%mdc{trace_id} span_id=%mdc{span_id} [%thread] %logger - %message%n%xException{10}</pattern>
@@ -13,7 +17,7 @@
     <logger name="services" level="WARN" />
 
     <root level="WARN">
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="OTEL" />
     </root>
 
 </configuration>

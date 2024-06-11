@@ -3,7 +3,9 @@ package services
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.{Span, StatusCode}
 import io.opentelemetry.context.Context
+import org.apache.pekko.util.ByteString
 import play.api.libs.concurrent.Futures
+import play.api.libs.ws.WSClient
 import sourcecode.Enclosing
 
 import javax.inject.*
@@ -12,7 +14,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 @Singleton
-class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(implicit ec: ExecutionContext) {
+class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: WSClient)(implicit ec: ExecutionContext) {
   private val tracer = GlobalOpenTelemetry.getTracer("application")
 
   private val logger = org.slf4j.LoggerFactory.getLogger(classOf[MyService])
@@ -76,6 +78,39 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures)(impl
     Future {
       getCurrentTime
     }(ec)
+  }
+
+  def forceScope[A](parentContext: Context, span: Span)(block: => A): A = {
+    val context = parentContext.`with`(span)
+    val scope = context.makeCurrent
+    try {
+      block
+    } finally {
+      scope.close()
+    }
+  }
+
+  def getCat: Future[ByteString] = {
+    val span = tracer.spanBuilder("getCat").startSpan()
+    val scope = span.makeCurrent()
+    val parentContext = Context.current()
+    try {
+      val f = ws.url("https://http.cat/404.jpg").withRequestTimeout(1.seconds).get().map { result =>
+        assertSpan()
+        result.bodyAsBytes
+      }
+      f.onComplete {
+        case Success(_) =>
+          span.end()
+        case Failure(e) =>
+          span.recordException(e)
+          span.setStatus(StatusCode.ERROR)
+          span.end()
+      }
+      f
+    } finally {
+      scope.close()
+    }
   }
 
   def futureCurrentTimeWithSpan: Future[Long] = {

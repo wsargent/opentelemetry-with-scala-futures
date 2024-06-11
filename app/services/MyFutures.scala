@@ -15,9 +15,4 @@ class MyFutures @Inject()(actorSystem: ActorSystem) {
     implicit val ec: ExecutionContextExecutor = new TracingExecutionContext(actorSystem.dispatcher, context)
     org.apache.pekko.pattern.after(duration, actorSystem.scheduler)(f)
   }
-
-  class TracingExecutionContext(executor: ExecutionContextExecutor, context: Context) extends ExecutionContextExecutor {
-    override def reportFailure(cause: Throwable): Unit = executor.reportFailure(cause)
-    override def execute(command: Runnable): Unit = executor.execute(context.wrap(command))
-  }
 }
