@@ -15,6 +15,7 @@
     </appender>
 
     <logger name="io.opentelemetry" level="DEBUG" />
+    <logger name="io.opentelemetry.api.internal.ApiUsageLogger" level="TRACE" />
     <logger name="services" level="DEBUG" />
 
     <root level="INFO">
