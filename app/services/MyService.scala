@@ -77,7 +77,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
     // Magic auto-instrumentation?
     Future {
       getCurrentTime
-    }(ec)
+    }(new TracingExecutionContext(ec, Context.current()))
   }
 
   def forceScope[A](parentContext: Context, span: Span)(block: => A): A = {
@@ -106,7 +106,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }
+      }(ExecutionContext.parasitic)
       f
     } finally {
       scope.close()
@@ -125,7 +125,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }
+      }(ExecutionContext.parasitic)
       f
     } finally {
       scope.close()
@@ -149,7 +149,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }
+      }(ExecutionContext.parasitic)
       delayed
     } finally {
       scope.close()
@@ -176,7 +176,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
         span.recordException(e)
         span.setStatus(StatusCode.ERROR)
         span.end()
-    }
+    }(ExecutionContext.parasitic)
     delayed
   }
 
@@ -200,7 +200,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }
+      }(ExecutionContext.parasitic)
       delayed
     } finally {
       scope.close()
@@ -229,7 +229,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }(ExecutionContext.global)
+      }(ExecutionContext.parasitic)
       f
     }
   */
