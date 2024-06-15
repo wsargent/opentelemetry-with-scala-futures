@@ -14,28 +14,44 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 @Singleton
-class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: WSClient)(implicit ec: ExecutionContext) {
+class MyService @Inject() (
+    futures: Futures,
+    contextAwareFutures: MyFutures,
+    ws: WSClient
+)(implicit ec: ExecutionContext) {
   private val tracer = GlobalOpenTelemetry.getTracer("application")
 
   private val logger = org.slf4j.LoggerFactory.getLogger(classOf[MyService])
 
-  private def assertSpan()(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
+  private def assertSpan()(implicit
+      enclosing: Enclosing,
+      line: sourcecode.Line
+  ): Span = {
     assertSpan(Span.fromContextOrNull(Context.current))
   }
 
-  private def assertSpan(span: Span)(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
+  private def assertSpan(
+      span: Span
+  )(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
     if (span == null) {
-      logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
-      throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
+      logger.debug(
+        s"We don't have a current span from ${enclosing.value} line ${line.value}!"
+      )
+      throw new IllegalStateException(
+        s"We don't have a current span from ${enclosing.value} line ${line.value}!"
+      )
     }
     logger.debug(s"assertSpan: span = ${span}")
     span
   }
 
-  //----------------------------------------------------------
+  // ----------------------------------------------------------
   // The simplest case: synchronous methods.
 
-  def getCurrentTime(implicit enc: sourcecode.Enclosing, line: sourcecode.Line): Long = {
+  def getCurrentTime(implicit
+      enc: sourcecode.Enclosing,
+      line: sourcecode.Line
+  ): Long = {
     val span = assertSpan()
 
     if (span.isRecording) {
@@ -69,7 +85,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
     }
   }
 
-  //----------------------------------------------------------
+  // ----------------------------------------------------------
   // Expecting an active span in a Future.
 
   def futureCurrentTime: Future[Long] = {
@@ -95,10 +111,14 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
     val scope = span.makeCurrent()
     val parentContext = Context.current()
     try {
-      val f = ws.url("https://http.cat/404.jpg").withRequestTimeout(1.seconds).get().map { result =>
-        assertSpan()
-        result.bodyAsBytes
-      }
+      val f = ws
+        .url("https://http.cat/404.jpg")
+        .withRequestTimeout(1.seconds)
+        .get()
+        .map { result =>
+          assertSpan()
+          result.bodyAsBytes
+        }
       f.onComplete {
         case Success(_) =>
           span.end()
@@ -114,7 +134,8 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
   }
 
   def futureCurrentTimeWithSpan: Future[Long] = {
-    val span = tracer.spanBuilder("explicitFutureCurrentTimeWithSpan").startSpan()
+    val span =
+      tracer.spanBuilder("explicitFutureCurrentTimeWithSpan").startSpan()
     val scope = span.makeCurrent()
     try {
       val f = futureCurrentTime
@@ -132,7 +153,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
     }
   }
 
-  //----------------------------------------------------------------------
+  // ----------------------------------------------------------------------
   // If we make an active span around `delayedCurrentTime`, it won't work.
 
   def brokenDelayedCurrentTime: Future[Long] = {
@@ -156,7 +177,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
     }
   }
 
-  //----------------------------------------------------------------------
+  // ----------------------------------------------------------------------
   // We have to explicitly activate the span inside the delayed block to fix it.
 
   def fixedDelayedCurrentTime: Future[Long] = {
@@ -180,7 +201,7 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
     delayed
   }
 
-  //----------------------------------------------------------------------
+  // ----------------------------------------------------------------------
   // A better fix to this is to ensure that all execution contexts can carry the otel context
   // over asynchronous boundaries.
 
@@ -232,6 +253,6 @@ class MyService @Inject()(futures: Futures, contextAwareFutures: MyFutures, ws: 
       }(ExecutionContext.parasitic)
       f
     }
-  */
+   */
 
 }

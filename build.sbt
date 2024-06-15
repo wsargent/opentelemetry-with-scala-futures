@@ -31,11 +31,9 @@ lazy val root = (project in file("."))
       |addJava "-Dotel.javaagent.debug=true"
       |addJava "-Dotel.javaagent.logging=application"
       |addJava "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
-      |addJava "-Dplay.http.secret.key=a-sacrifice-to-the-entropy-gods-awefawefawefawefawef"
       |export OTEL_RESOURCES_ATTRIBUTES="service.version=1.0"
       |""".stripMargin,
     libraryDependencies ++= Seq(
-      guice,
       ws,
       "com.lihaoyi" %% "sourcecode" % "0.4.2",
       "io.opentelemetry" % "opentelemetry-api" % "1.38.0",

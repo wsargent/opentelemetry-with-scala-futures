@@ -8,11 +8,12 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 // This is a stripped down version of play.api.libs.concurrent.DefaultFutures
-class MyFutures @Inject()(actorSystem: ActorSystem) {
+class MyFutures @Inject() (actorSystem: ActorSystem) {
 
   def delayed[A](duration: FiniteDuration)(f: => Future[A]): Future[A] = {
     val context = Context.current()
-    implicit val ec: ExecutionContextExecutor = new TracingExecutionContext(actorSystem.dispatcher, context)
+    implicit val ec: ExecutionContextExecutor =
+      new TracingExecutionContext(actorSystem.dispatcher, context)
     org.apache.pekko.pattern.after(duration, actorSystem.scheduler)(f)
   }
 }
