@@ -1,4 +1,4 @@
-<configuration debug="true">
+<configuration>
 
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
         <resetJUL>true</resetJUL>
@@ -21,7 +21,7 @@
         </encoder>
     </appender>
 
-    <logger name="io.opentelemetry" level="DEBUG" />
+    <logger name="io.opentelemetry" level="INFO" />
     <logger name="io.opentelemetry.api.internal.ApiUsageLogger" level="TRACE" />
     <logger name="services" level="DEBUG" />
 

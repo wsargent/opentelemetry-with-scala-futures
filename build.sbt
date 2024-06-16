@@ -1,11 +1,13 @@
+import java.time.Instant
+
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala, JavaAgent)
+  .disablePlugins(PlayLayoutPlugin) // https://www.playframework.com/documentation/2.9.x/Anatomy#Default-sbt-layout
   .settings(
     name := """opentelemetry-with-scala-futures""",
     organization := "com.example",
     version := "1.0-SNAPSHOT",
-    crossScalaVersions := Seq("3.4.0"),
-    scalaVersion := crossScalaVersions.value.head,
+    scalaVersion := "3.4.0",
     // automatically fork and add agent on "test", and "runProd"
     // Note that intellij will not fork correctly so you have to run from CLI
     // https://github.com/sbt/sbt-javaagent?tab=readme-ov-file#scopes
@@ -24,14 +26,16 @@ lazy val root = (project in file("."))
     ),
     bashScriptExtraDefines +=
       s"""
-      |addJava "-Dotel.service.name=opentelemetry-with-scala-futures"
+      |# run jaeger-all-in-one to see traces, or set this to none
       |addJava "-Dotel.traces.exporter=otlp"
       |addJava "-Dotel.metrics.exporter=none"
       |addJava "-Dotel.logs.exporter=none"
-      |addJava "-Dotel.javaagent.debug=true"
+      |addJava "-Dotel.javaagent.debug=false"
       |addJava "-Dotel.javaagent.logging=application"
-      |addJava "-Dotel.resource.attributes=service.version=${version.value}"
-      |addJava "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
+      |addJava "-Dotel.resource.attributes=service.name=${name.value},service.version=${version.value},artifact.build_time=${Instant.now.toString}"
+      |# process.command_line is very large and potentially a security risk, do not include it
+      |addJava "-Dotel.java.disabled.resource.providers=io.opentelemetry.instrumentation.resources.ProcessResourceProvider",
+      |addJava "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=false"
       |""".stripMargin,
     libraryDependencies ++= Seq(
       ws,
@@ -46,5 +50,5 @@ lazy val root = (project in file("."))
     ),
     scalacOptions ++= Seq(
       "-feature",
-    )
+    ),
   )

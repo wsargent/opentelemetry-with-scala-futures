@@ -1,19 +1,14 @@
 package components
 
-import io.opentelemetry.context.Context
 import org.slf4j.LoggerFactory
 import play.api.*
-import play.api.ApplicationLoader
 import play.api.libs.concurrent.DefaultFutures
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.mvc.Results.*
 import play.api.mvc.*
+import play.api.mvc.Results.*
 import play.api.routing.Router
 import play.api.routing.sird.*
 import services.*
-
-import java.util.concurrent.atomic.AtomicBoolean
-import scala.concurrent.{ExecutionContext, Future}
 
 class AppComponents(context: ApplicationLoader.Context) extends BuiltInComponentsFromContext(context) with AhcWSComponents {
   private val logger = LoggerFactory.getLogger(getClass)
