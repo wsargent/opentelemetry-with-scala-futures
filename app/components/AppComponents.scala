@@ -18,25 +18,23 @@ import scala.concurrent.{ExecutionContext, Future}
 class AppComponents(context: ApplicationLoader.Context) extends BuiltInComponentsFromContext(context) with AhcWSComponents {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  private val enabledFlag = new AtomicBoolean(false)
-  private def isEnabled: Boolean = enabledFlag.get
+  // If we uncomment this, all the tests fail.
+  //override implicit lazy val executionContext: ExecutionContext = TracingExecutionContext(actorSystem)
 
-  override implicit lazy val executionContext: ExecutionContext = new TracingExecutionContext(actorSystem.dispatcher, isEnabled, Context.current)
-
-  val service = new MyService(new DefaultFutures(actorSystem), contextAwareFutures = new MyFutures(actorSystem), ws = wsClient)
+  val service = new MyService(new DefaultFutures(actorSystem), contextAwareFutures = new MyFutures()(actorSystem), ws = wsClient)
 
   override val httpFilters: Seq[EssentialFilter] = Nil
 
   override val router: Router = Router.from {
     case POST(p"/enable") =>
       Action {
-        enabledFlag.set(true)
+        TracingExecutionContext.enable()
         Redirect("/")
       }
 
     case POST(p"/disable") =>
       Action {
-        enabledFlag.set(false)
+        TracingExecutionContext.disable()
         Redirect("/")
       }
 

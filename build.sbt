@@ -23,22 +23,22 @@ lazy val root = (project in file("."))
        "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
     ),
     bashScriptExtraDefines +=
-      """
+      s"""
       |addJava "-Dotel.service.name=opentelemetry-with-scala-futures"
-      |addJava "-Dotel.traces.exporter=logging"
+      |addJava "-Dotel.traces.exporter=otlp"
       |addJava "-Dotel.metrics.exporter=none"
       |addJava "-Dotel.logs.exporter=none"
       |addJava "-Dotel.javaagent.debug=true"
       |addJava "-Dotel.javaagent.logging=application"
+      |addJava "-Dotel.resource.attributes=service.version=${version.value}"
       |addJava "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
-      |export OTEL_RESOURCES_ATTRIBUTES="service.version=1.0"
       |""".stripMargin,
     libraryDependencies ++= Seq(
       ws,
       "com.lihaoyi" %% "sourcecode" % "0.4.2",
-      "io.opentelemetry" % "opentelemetry-api" % "1.38.0",
-      "io.opentelemetry" % "opentelemetry-sdk" % "1.38.0",
-      "io.opentelemetry" % "opentelemetry-exporter-logging" % "1.38.0",
+      "io.opentelemetry" % "opentelemetry-api" % "1.39.0",
+      "io.opentelemetry" % "opentelemetry-sdk" % "1.39.0",
+      "io.opentelemetry" % "opentelemetry-exporter-logging" % "1.39.0",
       "io.opentelemetry.semconv" % "opentelemetry-semconv" % "1.25.0-alpha",
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.38.0",
       "io.opentelemetry.instrumentation" % "opentelemetry-logback-mdc-1.0" % "2.4.0-alpha" % "runtime",
