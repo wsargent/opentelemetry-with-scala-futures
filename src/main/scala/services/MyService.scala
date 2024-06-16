@@ -10,7 +10,7 @@ import play.api.libs.concurrent.Futures
 import play.api.libs.ws.WSClient
 import sourcecode.Enclosing
 
-import javax.inject.*
+import javax.inject._
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -20,7 +20,8 @@ class MyService @Inject() (
     futures: Futures,
     contextAwareFutures: MyFutures,
     ws: WSClient
-)(implicit ec: ExecutionContext) extends Logging {
+)(implicit ec: ExecutionContext)
+    extends Logging {
   private val tracer = GlobalOpenTelemetry.getTracer("application")
 
   private val logger = LoggerFactory.getLogger
@@ -36,7 +37,7 @@ class MyService @Inject() (
       span: Span
   )(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
     if (span == null) {
-      //logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
+      // logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
       throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
     }
     logger.debug(s"assertSpan: {}", span)
@@ -225,30 +226,28 @@ class MyService @Inject() (
   }
 
   // Some utility methods for managing spans, commented out because they're not needed for the examples
-  /*
-    def makeCurrent[F](f: => F)(implicit span: Span, enclosing: Enclosing, line: sourcecode.Line): F = {
-      assertSpan(span)
-      val scope = span.makeCurrent()
-      try {
-        f
-      } finally {
-        scope.close()
-      }
-    }
-
-    def traceFuture[F](spanName: String)(producesFuture: => Future[F]): Future[F] = {
-      implicit val span: Span = tracer.spanBuilder(spanName).startSpan()
-      val f = makeCurrent(producesFuture)
-      f.onComplete {
-        case Success(_) =>
-          span.end()
-        case Failure(e) =>
-          span.recordException(e)
-          span.setStatus(StatusCode.ERROR)
-          span.end()
-      }(ExecutionContext.parasitic)
+  def makeCurrent[F](f: => F)(implicit span: Span, enclosing: Enclosing, line: sourcecode.Line): F = {
+    assertSpan(span)
+    val scope = span.makeCurrent()
+    try {
       f
+    } finally {
+      scope.close()
     }
-   */
+  }
+
+  def traceFuture[F](spanName: String)(producesFuture: => Future[F]): Future[F] = {
+    implicit val span: Span = tracer.spanBuilder(spanName).startSpan()
+    val f = makeCurrent(producesFuture)
+    f.onComplete {
+      case Success(_) =>
+        span.end()
+      case Failure(e) =>
+        span.recordException(e)
+        span.setStatus(StatusCode.ERROR)
+        span.end()
+    }(ExecutionContext.parasitic)
+    f
+  }
 
 }

@@ -43,7 +43,7 @@ object TracingExecutionContext {
   def apply(executionContext: ExecutionContext): TracingExecutionContext = {
     executionContext match {
       case tctx: TracingExecutionContext => tctx
-      case _ => new TracingExecutionContext(executionContext, isEnabled, Context.current())
+      case _                             => new TracingExecutionContext(executionContext, isEnabled, Context.current())
     }
   }
 
