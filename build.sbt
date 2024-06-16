@@ -2,6 +2,7 @@ import java.time.Instant
 
 val echopraxiaVersion = "3.2.0"
 val echopraxiaPlusScalaVersion = "1.4.0"
+val otelVersion = "1.39.0"
 
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala, JavaAgent)
@@ -44,11 +45,11 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       ws,
       "com.lihaoyi" %% "sourcecode" % "0.4.2",
-      "io.opentelemetry" % "opentelemetry-api" % "1.39.0",
-      "io.opentelemetry" % "opentelemetry-sdk" % "1.39.0",
-      "io.opentelemetry" % "opentelemetry-exporter-logging" % "1.39.0",
+      "io.opentelemetry" % "opentelemetry-api" % otelVersion,
+      "io.opentelemetry" % "opentelemetry-sdk" % otelVersion,
+      "io.opentelemetry" % "opentelemetry-exporter-logging" % otelVersion,
       "io.opentelemetry.semconv" % "opentelemetry-semconv" % "1.25.0-alpha",
-      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.38.0",
+      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % otelVersion,
       // logging stuff to debug otel internals (you don't need this)
       "com.tersesystems.echopraxia.plusscala" %% "logger" % echopraxiaPlusScalaVersion,
       "com.tersesystems.echopraxia" % "logstash" % echopraxiaVersion,
