@@ -2,14 +2,17 @@ package services
 
 import com.tersesystems.echopraxia.plusscala.LoggerFactory
 import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.common.{AttributeKey, Attributes}
 import io.opentelemetry.api.trace.{Span, StatusCode}
 import io.opentelemetry.context.Context
 import logging.Logging
 import org.apache.pekko.util.ByteString
 import play.api.libs.concurrent.Futures
 import play.api.libs.ws.WSClient
+import services.MyService.resultKey
 import sourcecode.Enclosing
 
+import java.lang
 import javax.inject._
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -28,17 +31,18 @@ class MyService @Inject() (
 
   private def assertSpan()(implicit
       enclosing: Enclosing,
-      line: sourcecode.Line
+      line: sourcecode.Line,
+      expectedSpan: Span
   ): Span = {
     assertSpan(Span.fromContextOrNull(Context.current))
   }
 
   private def assertSpan(
       span: Span
-  )(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
-    if (span == null) {
-      // logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
-      throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
+  )(implicit enclosing: Enclosing, line: sourcecode.Line, expectedSpan: Span): Span = {
+    if (span != expectedSpan) {
+      logger.error(s"assertSpan: {} != {}", span, expectedSpan)
+      throw new IllegalStateException(s"Unexpected span from ${enclosing.value} line ${line.value}! ${Option(span.getSpanContext).map(_.getSpanId).orNull} != ${expectedSpan.getSpanContext.getSpanId}")
     }
     logger.debug(s"assertSpan: {}", span)
     span
@@ -49,24 +53,25 @@ class MyService @Inject() (
 
   def getCurrentTime(implicit
       enc: sourcecode.Enclosing,
-      line: sourcecode.Line
+      line: sourcecode.Line,
+      expectedSpan: Span
   ): Long = {
     val span = assertSpan()
 
+    // On shutdown, threads will still be active but will get non-writable spans :-(
+    val result = System.currentTimeMillis()
     if (span.isRecording) {
-      span.setAttribute("success", true)
-      span.addEvent("success")
+      val attributes = Attributes.of[java.lang.Long](resultKey, result)
+      span.addEvent("getCurrentTime", attributes)
     } else {
       logger.warn("getCurrentTime: span is read only! {}", span)
     }
-
-    val result = System.currentTimeMillis()
     logger.debug("getCurrentTime: {}", "result" -> result)
     result
   }
 
   def currentTimeWithSpan: Long = {
-    val span = tracer.spanBuilder("currentTime").startSpan()
+    implicit val span = tracer.spanBuilder("currentTime").startSpan()
     val scope = span.makeCurrent()
     try {
       try {
@@ -87,7 +92,7 @@ class MyService @Inject() (
   // ----------------------------------------------------------
   // Expecting an active span in a Future.
 
-  def futureCurrentTime: Future[Long] = {
+  def futureCurrentTime(implicit expectedSpan: Span): Future[Long] = {
     Future {
       getCurrentTime
     }
@@ -104,7 +109,7 @@ class MyService @Inject() (
   }
 
   def getCat: Future[ByteString] = {
-    val span = tracer.spanBuilder("getCat").startSpan()
+    implicit val span = tracer.spanBuilder("getCat").startSpan()
     val scope = span.makeCurrent()
     val parentContext = Context.current()
     try {
@@ -131,7 +136,7 @@ class MyService @Inject() (
   }
 
   def futureCurrentTimeWithSpan: Future[Long] = {
-    val span =
+    implicit val span =
       tracer.spanBuilder("explicitFutureCurrentTimeWithSpan").startSpan()
     val scope = span.makeCurrent()
     try {
@@ -154,7 +159,7 @@ class MyService @Inject() (
   // If we make an active span around `delayedCurrentTime`, it won't work.
 
   def brokenDelayedCurrentTime: Future[Long] = {
-    val span = tracer.spanBuilder("brokenDelayedCurrentTime").startSpan()
+    implicit val span = tracer.spanBuilder("brokenDelayedCurrentTime").startSpan()
     val scope = span.makeCurrent()
     try {
       val delayed = futures.delayed(10.millis) {
@@ -178,7 +183,7 @@ class MyService @Inject() (
   // We have to explicitly activate the span inside the delayed block to fix it.
 
   def fixedDelayedCurrentTime: Future[Long] = {
-    val span = tracer.spanBuilder("fixedDelayedCurrentTime").startSpan()
+    implicit val span = tracer.spanBuilder("fixedDelayedCurrentTime").startSpan()
     val delayed = futures.delayed(10.millis) {
       val scope = span.makeCurrent()
       try {
@@ -203,7 +208,7 @@ class MyService @Inject() (
   // over asynchronous boundaries.
 
   def contextAwareDelayedCurrentTime: Future[Long] = {
-    val span = tracer.spanBuilder("contextAwareDelayedCurrentTime").startSpan()
+    implicit val span = tracer.spanBuilder("contextAwareDelayedCurrentTime").startSpan()
     val scope = span.makeCurrent()
     try {
       // contextAwareFutures knows about the activated span and will propagate it
@@ -250,4 +255,8 @@ class MyService @Inject() (
     f
   }
 
+}
+
+object MyService {
+  val resultKey: AttributeKey[java.lang.Long] = AttributeKey.longKey("result")
 }

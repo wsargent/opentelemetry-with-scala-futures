@@ -1,5 +1,6 @@
 package components
 
+import io.opentelemetry.api.trace.Span
 import org.slf4j.LoggerFactory
 import play.api._
 import play.api.libs.concurrent.DefaultFutures
@@ -46,6 +47,7 @@ class AppComponents(context: ApplicationLoader.Context) extends BuiltInComponent
 
     case GET(p"/future") =>
       Action.async {
+        implicit val span = Span.current
         service.futureCurrentTime.map { result =>
           Ok(result.toString)
         }
