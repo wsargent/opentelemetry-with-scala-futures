@@ -1,29 +1,45 @@
 package components
 
+import io.opentelemetry.context.Context
+import org.slf4j.LoggerFactory
 import play.api.*
-import play.api.ApplicationLoader.Context
+import play.api.ApplicationLoader
 import play.api.libs.concurrent.DefaultFutures
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.Results.*
-import play.api.mvc.{DefaultActionBuilder, EssentialFilter}
+import play.api.mvc.*
 import play.api.routing.Router
 import play.api.routing.sird.*
 import services.*
 
-class AppComponents(context: Context)
-    extends BuiltInComponentsFromContext(context)
-    with AhcWSComponents {
+import java.util.concurrent.atomic.AtomicBoolean
+import scala.concurrent.{ExecutionContext, Future}
 
-  val futures = new DefaultFutures(actorSystem)
-  val myFutures = new MyFutures(actorSystem)
-  val service =
-    new MyService(futures, contextAwareFutures = myFutures, ws = wsClient)
+class AppComponents(context: ApplicationLoader.Context) extends BuiltInComponentsFromContext(context) with AhcWSComponents {
+  private val logger = LoggerFactory.getLogger(getClass)
+
+  private val enabledFlag = new AtomicBoolean(false)
+  private def isEnabled: Boolean = enabledFlag.get
+
+  override implicit lazy val executionContext: ExecutionContext = new TracingExecutionContext(actorSystem.dispatcher, isEnabled, Context.current)
+
+  val service = new MyService(new DefaultFutures(actorSystem), contextAwareFutures = new MyFutures(actorSystem), ws = wsClient)
 
   override val httpFilters: Seq[EssentialFilter] = Nil
 
-  override val Action: DefaultActionBuilder = defaultActionBuilder
-
   override val router: Router = Router.from {
+    case POST(p"/enable") =>
+      Action {
+        enabledFlag.set(true)
+        Redirect("/")
+      }
+
+    case POST(p"/disable") =>
+      Action {
+        enabledFlag.set(false)
+        Redirect("/")
+      }
+
     case GET(p"/") =>
       Action {
         Ok(views.html.index())

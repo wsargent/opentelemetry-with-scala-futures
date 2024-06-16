@@ -1,16 +1,23 @@
-<configuration>
+<configuration debug="true">
 
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
         <resetJUL>true</resetJUL>
     </contextListener>
 
-    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.mdc.v1_0.OpenTelemetryAppender">
-        <appender-ref ref="STDOUT"/>
-    </appender>
+    <!--    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.mdc.v1_0.OpenTelemetryAppender">-->
+    <!--        <appender-ref ref="STDOUT"/>-->
+    <!--    </appender>-->
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%-5r %highlight(%-5level) trace_id=%mdc{trace_id} span_id=%mdc{span_id} [%thread] %logger - %message%n%xException{10}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>logs/play.log</file>
+        <encoder>
+            <pattern>%date{H:mm:ss.SSS} %-5level trace_id=%mdc{trace_id} span_id=%mdc{span_id} [%thread]: %message%n%ex</pattern>
         </encoder>
     </appender>
 
@@ -19,7 +26,8 @@
     <logger name="services" level="DEBUG" />
 
     <root level="INFO">
-        <appender-ref ref="OTEL" />
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
     </root>
 
 </configuration>

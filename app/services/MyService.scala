@@ -89,11 +89,9 @@ class MyService @Inject() (
   // Expecting an active span in a Future.
 
   def futureCurrentTime: Future[Long] = {
-    // this will work with an active span, even if we pass in generic execution context!
-    // Magic auto-instrumentation?
     Future {
       getCurrentTime
-    }(new TracingExecutionContext(ec, Context.current()))
+    }
   }
 
   def forceScope[A](parentContext: Context, span: Span)(block: => A): A = {

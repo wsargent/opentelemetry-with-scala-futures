@@ -10,5 +10,8 @@ import services.*
 
 // configured from application.conf
 class AppLoader extends ApplicationLoader {
-  def load(context: Context) = new components.AppComponents(context).application
+  def load(context: Context) = {
+    LoggerConfigurator(context.environment.classLoader).foreach(_.configure(context.environment))
+    components.AppComponents(context).application
+  }
 }

@@ -7,11 +7,11 @@
     <!--        <appender-ref ref="STDOUT"/>-->
     <!--    </appender>-->
 
-    <property name="stdout.logging.level" value="OFF"/>
+    <property name="test.stdout.logging.level" value="OFF"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>${stdout.logging.level:-OFF}</level>
+            <level>${test.stdout.logging.level}</level>
         </filter>
         <encoder>
             <pattern>%-5r %highlight(%-5level) trace_id=%mdc{trace_id} span_id=%mdc{span_id} [%thread] %logger - %message%n</pattern>
