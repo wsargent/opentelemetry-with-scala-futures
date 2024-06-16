@@ -1,8 +1,10 @@
 package services
 
+import com.tersesystems.echopraxia.plusscala.LoggerFactory
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.{Span, StatusCode}
 import io.opentelemetry.context.Context
+import logging.Logging
 import org.apache.pekko.util.ByteString
 import play.api.libs.concurrent.Futures
 import play.api.libs.ws.WSClient
@@ -18,10 +20,10 @@ class MyService @Inject() (
     futures: Futures,
     contextAwareFutures: MyFutures,
     ws: WSClient
-)(implicit ec: ExecutionContext) {
+)(implicit ec: ExecutionContext) extends Logging {
   private val tracer = GlobalOpenTelemetry.getTracer("application")
 
-  private val logger = org.slf4j.LoggerFactory.getLogger(classOf[MyService])
+  private val logger = LoggerFactory.getLogger
 
   private def assertSpan()(implicit
       enclosing: Enclosing,
@@ -34,14 +36,10 @@ class MyService @Inject() (
       span: Span
   )(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
     if (span == null) {
-      logger.debug(
-        s"We don't have a current span from ${enclosing.value} line ${line.value}!"
-      )
-      throw new IllegalStateException(
-        s"We don't have a current span from ${enclosing.value} line ${line.value}!"
-      )
+      //logger.debug(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
+      throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
     }
-    logger.debug(s"assertSpan: span = ${span}")
+    logger.debug(s"assertSpan: {}", span)
     span
   }
 
@@ -58,11 +56,11 @@ class MyService @Inject() (
       span.setAttribute("success", true)
       span.addEvent("success")
     } else {
-      logger.warn(s"getCurrentTime: span is read only! ${span}")
+      logger.warn("getCurrentTime: span is read only! {}", span)
     }
 
     val result = System.currentTimeMillis()
-    logger.debug(s"getCurrentTime: $result")
+    logger.debug("getCurrentTime: {}", "result" -> result)
     result
   }
 

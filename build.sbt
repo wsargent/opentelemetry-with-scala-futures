@@ -1,5 +1,8 @@
 import java.time.Instant
 
+val echopraxiaVersion = "3.2.0"
+val echopraxiaPlusScalaVersion = "1.4.0"
+
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala, JavaAgent)
   .disablePlugins(PlayLayoutPlugin) // https://www.playframework.com/documentation/2.9.x/Anatomy#Default-sbt-layout
@@ -14,15 +17,15 @@ lazy val root = (project in file("."))
     javaAgents += "io.opentelemetry.javaagent" % "opentelemetry-javaagent" % "2.4.0" % "dist;test",
     // https://opentelemetry.io/docs/zero-code/java/agent/configuration/
     javaOptions ++= Seq(
-       "-Dotel.service.name=opentelemetry-with-scala-futures",
-       "-Dotel.traces.exporter=logging",
-       "-Dotel.metrics.exporter=none",
-       "-Dotel.logs.exporter=none",
-       "-Dotel.javaagent.debug=false",
-       "-Dotel.javaagent.logging=application",
+      "-Dotel.service.name=opentelemetry-with-scala-futures",
+      "-Dotel.traces.exporter=logging",
+      "-Dotel.metrics.exporter=none",
+      "-Dotel.logs.exporter=none",
+      "-Dotel.javaagent.debug=false",
+      "-Dotel.javaagent.logging=application",
       // https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/874#issuecomment-747506873
       // https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/2676/files
-       "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
+      "-Dio.opentelemetry.javaagent.shaded.io.opentelemetry.context.enableStrictContext=true"
     ),
     bashScriptExtraDefines +=
       s"""
@@ -45,10 +48,17 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-exporter-logging" % "1.39.0",
       "io.opentelemetry.semconv" % "opentelemetry-semconv" % "1.25.0-alpha",
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.38.0",
-      "io.opentelemetry.instrumentation" % "opentelemetry-logback-mdc-1.0" % "2.4.0-alpha" % "runtime",
+      // logging stuff to debug otel internals (you don't need this)
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.1",
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.17.1",
+      "com.tersesystems.echopraxia.plusscala" %% "logger" % echopraxiaPlusScalaVersion,
+      "com.tersesystems.echopraxia" % "logstash" % echopraxiaVersion,
+      "ch.qos.logback" % "logback-classic" % "1.5.6",
+      "net.logstash.logback" % "logstash-logback-encoder" % "7.4",
+      // Testing
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
     ),
     scalacOptions ++= Seq(
-      "-feature",
-    ),
+      "-feature"
+    )
   )
