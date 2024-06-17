@@ -16,10 +16,10 @@ trait Logging extends LoggingBase with FutureToValueImplicits {
 
   implicit def contextToField: ToField[Context] = ToField(
     _ => "otel_context",
-    { other =>
+    { ctx =>
       ToObjectValue(
-        other.getClass,
-        "to_string" -> Value.string(other.toString).abbreviateAfter(20)
+        ctx.getClass,
+        "to_string" -> Value.string(ctx.toString).abbreviateAfter(20)
       )
     }
   )

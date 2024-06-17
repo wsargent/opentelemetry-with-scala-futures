@@ -34,15 +34,20 @@ class MyService @Inject() (
       line: sourcecode.Line,
       expectedSpan: Span
   ): Span = {
-    assertSpan(Span.fromContextOrNull(Context.current))
+    assertSpan(Option(Span.fromContextOrNull(Context.current)))
   }
 
   private def assertSpan(
-      span: Span
+      maybeSpan: Option[Span]
   )(implicit enclosing: Enclosing, line: sourcecode.Line, expectedSpan: Span): Span = {
+    if (maybeSpan.isEmpty) {
+      logger.error(s"assertSpan: no span found, expected {}", expectedSpan)
+      throw new IllegalStateException(s"No span at ${enclosing.value} line ${line.value}!")
+    }
+    val span = maybeSpan.get
     if (span != expectedSpan) {
       logger.error(s"assertSpan: {} != {}", span, expectedSpan)
-      throw new IllegalStateException(s"Unexpected span from ${enclosing.value} line ${line.value}! ${Option(span.getSpanContext).map(_.getSpanId).orNull} != ${expectedSpan.getSpanContext.getSpanId}")
+      throw new IllegalStateException(s"Unexpected span from ${enclosing.value} line ${line.value}! ${span.getSpanContext.getSpanId} != ${expectedSpan.getSpanContext.getSpanId}")
     }
     logger.debug(s"assertSpan: {}", span)
     span
@@ -231,8 +236,7 @@ class MyService @Inject() (
   }
 
   // Some utility methods for managing spans, commented out because they're not needed for the examples
-  def makeCurrent[F](f: => F)(implicit span: Span, enclosing: Enclosing, line: sourcecode.Line): F = {
-    assertSpan(span)
+  def makeCurrent[F](f: => F)(implicit span: Span): F = {
     val scope = span.makeCurrent()
     try {
       f

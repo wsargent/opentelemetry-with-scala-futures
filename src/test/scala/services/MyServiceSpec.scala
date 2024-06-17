@@ -2,10 +2,11 @@ package services
 
 import components.AppComponents
 import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.Span
 import org.scalatest.TryValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.must.Matchers
-import org.scalatest.time.{Second, Seconds, Span}
+import org.scalatest.time.{Second, Seconds}
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.components.OneServerPerSuiteWithComponents
 import play.api.test.Injecting
@@ -13,12 +14,7 @@ import play.api.test.Injecting
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
-class MyServiceSpec
-    extends PlaySpec
-    with Matchers
-    with OneServerPerSuiteWithComponents
-    with ScalaFutures
-    with TryValues {
+class MyServiceSpec extends PlaySpec with Matchers with OneServerPerSuiteWithComponents with ScalaFutures with TryValues {
 
   override def components: AppComponents = new AppComponents(context)
 
@@ -28,6 +24,7 @@ class MyServiceSpec
 
     "fail with getCurrentTime without an active span" in {
       val myService = components.service
+      implicit val span: Span = Span.current
       Try(myService.getCurrentTime).failure.exception mustBe an[
         IllegalStateException
       ]
@@ -35,7 +32,7 @@ class MyServiceSpec
 
     "work with getCurrentTime with an active span" in {
       val myService = components.service
-      val span = tracer.spanBuilder("getCurrentTime").startSpan()
+      implicit val span: Span = tracer.spanBuilder("getCurrentTime").startSpan()
       val scope = span.makeCurrent()
       try {
         myService.getCurrentTime
@@ -52,6 +49,7 @@ class MyServiceSpec
 
     "fail with futureCurrentTime if a span is not active" in {
       val myService = components.service
+      implicit val span: Span = Span.current
       myService.futureCurrentTime.failed.futureValue mustBe an[
         IllegalStateException
       ]
@@ -59,7 +57,7 @@ class MyServiceSpec
 
     "work with futureCurrentTime with an active span" in {
       val myService = components.service
-      val span = tracer.spanBuilder("futureCurrentTime").startSpan()
+      implicit val span: Span = tracer.spanBuilder("futureCurrentTime").startSpan()
       val scope = span.makeCurrent()
       try {
         val f = myService.futureCurrentTime
@@ -95,8 +93,10 @@ class MyServiceSpec
 
     "work getting a cat" in {
       val myService = components.service
-      implicit val patienceConfig: PatienceConfig =
-        PatienceConfig(Span(15, Seconds), Span(1, Second))
+      implicit val patienceConfig: PatienceConfig = PatienceConfig(
+        org.scalatest.time.Span(15, Seconds),
+        org.scalatest.time.Span(1, Second)
+      )
       whenReady(myService.getCat) { byteString =>
         byteString must not be (empty)
       }
