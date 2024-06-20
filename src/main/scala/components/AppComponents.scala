@@ -1,23 +1,25 @@
 package components
 
 import io.opentelemetry.api.trace.Span
-import org.slf4j.LoggerFactory
 import play.api._
 import play.api.libs.concurrent.DefaultFutures
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.mvc._
 import play.api.mvc.Results._
+import play.api.mvc._
 import play.api.routing.Router
 import play.api.routing.sird._
 import services._
 
 class AppComponents(context: ApplicationLoader.Context) extends BuiltInComponentsFromContext(context) with AhcWSComponents {
-  private val logger = LoggerFactory.getLogger(getClass)
-
   // If we uncomment this, all the tests fail.
   // override implicit lazy val executionContext: ExecutionContext = TracingExecutionContext(actorSystem)
 
-  val service = new MyService(new DefaultFutures(actorSystem), contextAwareFutures = new MyFutures()(actorSystem), ws = wsClient)
+  val service = new MyService(
+    futures = new DefaultFutures(actorSystem),
+    contextAwareFutures = new MyFutures()(actorSystem),
+    ws = wsClient,
+    myExecutionContext = new MyExecutionContext(actorSystem)
+  )
 
   override val httpFilters: Seq[EssentialFilter] = Nil
 

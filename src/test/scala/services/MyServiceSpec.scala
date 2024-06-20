@@ -9,7 +9,6 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.time.{Second, Seconds}
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.components.OneServerPerSuiteWithComponents
-import play.api.test.Injecting
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try

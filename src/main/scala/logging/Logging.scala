@@ -29,7 +29,7 @@ trait Logging extends LoggingBase with FutureToValueImplicits {
     { span =>
       ToObjectValue(
         span.getClass,
-        "to_string" -> Value.string(span.toString).abbreviateAfter(20)
+        "to_string" -> Value.string(span.toString)
       )
     }
   )
@@ -46,7 +46,7 @@ trait Logging extends LoggingBase with FutureToValueImplicits {
       case other =>
         ToObjectValue(
           other.getClass,
-          "to_string" -> Value.string(other.toString).abbreviateAfter(20)
+          "to_string" -> Value.string(other.toString).abbreviateAfter(50)
         )
     }
   )
