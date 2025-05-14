@@ -1,14 +1,14 @@
 package services
 
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.api.trace.{Span, StatusCode}
+import io.opentelemetry.api.trace.{Span, StatusCode, Tracer}
 import io.opentelemetry.context.Context
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object Utils {
-  private val tracer = GlobalOpenTelemetry.getTracer("application")
+  val tracer: Tracer = GlobalOpenTelemetry.getTracer("application")
 
   // Some utility methods for managing spans, commented out because they're not needed for the examples
   def makeCurrent[F](f: => F)(implicit span: Span): F = {
@@ -30,7 +30,7 @@ object Utils {
         span.recordException(e)
         span.setStatus(StatusCode.ERROR)
         span.end()
-    }(ExecutionContext.parasitic)
+    }(using ExecutionContext.parasitic)
     f
   }
 

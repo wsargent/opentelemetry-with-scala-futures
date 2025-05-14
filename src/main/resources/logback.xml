@@ -22,7 +22,7 @@
     </appender>
 
     <logger name="io.opentelemetry" level="INFO" />
-    <logger name="io.opentelemetry.api.internal.ApiUsageLogger" level="TRACE" />
+    <logger name="io.opentelemetry.api.internal.ApiUsageLogger" level="INFO" />
     <logger name="services" level="DEBUG" />
 
     <root level="INFO">
