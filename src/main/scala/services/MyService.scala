@@ -1,67 +1,27 @@
 package services
 
-import com.tersesystems.echopraxia.plusscala.LoggerFactory
-import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.{AttributeKey, Attributes}
-import io.opentelemetry.api.trace.{Span, StatusCode}
-import io.opentelemetry.context.Context
-import logging.Logging
+import io.opentelemetry.api.trace.{PropagatedSpan, Span, SpanContext, StatusCode, Tracer}
 import org.apache.pekko.util.ByteString
-import play.api.libs.concurrent.Futures
 import play.api.libs.ws.WSClient
 import services.MyService.resultKey
-import sourcecode.Enclosing
 
-import javax.inject._
+import javax.inject.*
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 @Singleton
-class MyService @Inject() (
-    futures: Futures,
-    contextAwareFutures: MyFutures,
-    ws: WSClient,
-    myExecutionContext: MyExecutionContext
-)(implicit ec: ExecutionContext)
-    extends Logging {
-  private val tracer = GlobalOpenTelemetry.getTracer("application")
-
-  private val logger = LoggerFactory.getLogger
-
-  private def assertSpan()(implicit
-      enclosing: Enclosing,
-      line: sourcecode.Line,
-      expectedSpan: Span
-  ): Span = {
-    assertSpan(Option(Span.fromContextOrNull(Context.current)))
-  }
-
-  private def assertSpan(
-      maybeSpan: Option[Span]
-  )(implicit enclosing: Enclosing, line: sourcecode.Line, expectedSpan: Span): Span = {
-    if (maybeSpan.isEmpty) {
-      logger.error(s"assertSpan: no span found, expected {}", expectedSpan)
-      throw new IllegalStateException(s"No span at ${enclosing.value} line ${line.value}!")
-    }
-    val span = maybeSpan.get
-    if (span != expectedSpan) {
-      logger.error(s"assertSpan: {} != {}", span, expectedSpan)
-      throw new IllegalStateException(s"Unexpected span from ${enclosing.value} line ${line.value}! ${span.getSpanContext.getSpanId} != ${expectedSpan.getSpanContext.getSpanId}")
-    }
-    logger.debug(s"assertSpan: {}", span)
-    span
-  }
+class MyService @Inject() (ws: WSClient, tracer: Tracer)(implicit ec: ExecutionContext) extends Logging {
 
   // ----------------------------------------------------------
   // The simplest case: synchronous methods.
 
-  def getCurrentTime(implicit
-      enc: sourcecode.Enclosing,
-      line: sourcecode.Line,
-      expectedSpan: Span
-  ): Long = {
-    val span = assertSpan()
+  def getCurrentTime: Long = {
+    val span = Span.current()
+    if (span.getSpanContext == SpanContext.getInvalid) {
+      throw new IllegalStateException("getCurrentTime: no active span!")
+    }
 
     // On shutdown, threads will still be active but will get non-writable spans :-(
     val result = System.currentTimeMillis()
@@ -76,7 +36,7 @@ class MyService @Inject() (
   }
 
   def currentTimeWithSpan: Long = {
-    implicit val span = tracer.spanBuilder("currentTime").startSpan()
+    implicit val span: Span = tracer.spanBuilder("currentTime").startSpan()
     val scope = span.makeCurrent()
     try {
       try {
@@ -97,28 +57,20 @@ class MyService @Inject() (
   // ----------------------------------------------------------
   // Expecting an active span in a Future.
 
-  def futureCurrentTimeWithDefaultEC(implicit expectedSpan: Span): Future[Long] = {
+  def futureCurrentTime: Future[Long] = {
     Future {
       getCurrentTime
     }
   }
 
-  def futureCurrentTime(implicit expectedSpan: Span): Future[Long] = {
-    Future {
-      getCurrentTime
-    }(myExecutionContext)
-  }
-
   def getCat: Future[ByteString] = {
-    implicit val span = tracer.spanBuilder("getCat").startSpan()
+    implicit val span: Span = tracer.spanBuilder("getCat").startSpan()
     val scope = span.makeCurrent()
     try {
-      val f = ws
-        .url("https://http.cat/404.jpg")
+      val f = ws.url("https://http.cat/404.jpg")
         .withRequestTimeout(1.seconds)
         .get()
         .map { result =>
-          assertSpan()
           result.bodyAsBytes
         }
       f.onComplete {
@@ -128,7 +80,7 @@ class MyService @Inject() (
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }(ExecutionContext.parasitic)
+      }(using ExecutionContext.parasitic)
       f
     } finally {
       scope.close()
@@ -136,7 +88,7 @@ class MyService @Inject() (
   }
 
   def futureCurrentTimeWithSpan: Future[Long] = {
-    implicit val span =
+    implicit val span: Span =
       tracer.spanBuilder("explicitFutureCurrentTimeWithSpan").startSpan()
     val scope = span.makeCurrent()
     try {
@@ -148,88 +100,12 @@ class MyService @Inject() (
           span.recordException(e)
           span.setStatus(StatusCode.ERROR)
           span.end()
-      }(ExecutionContext.parasitic)
+      }(using ExecutionContext.parasitic)
       f
     } finally {
       scope.close()
     }
   }
-
-  // ----------------------------------------------------------------------
-  // If we make an active span around `delayedCurrentTime`, it won't work.
-
-  def brokenDelayedCurrentTime: Future[Long] = {
-    implicit val span = tracer.spanBuilder("brokenDelayedCurrentTime").startSpan()
-    val scope = span.makeCurrent()
-    try {
-      val delayed = futures.delayed(10.millis) {
-        futureCurrentTime
-      }
-      delayed.onComplete {
-        case Success(_) =>
-          span.end()
-        case Failure(e) =>
-          span.recordException(e)
-          span.setStatus(StatusCode.ERROR)
-          span.end()
-      }(ExecutionContext.parasitic)
-      delayed
-    } finally {
-      scope.close()
-    }
-  }
-
-  // ----------------------------------------------------------------------
-  // We have to explicitly activate the span inside the delayed block to fix it.
-
-  def fixedDelayedCurrentTime: Future[Long] = {
-    implicit val span = tracer.spanBuilder("fixedDelayedCurrentTime").startSpan()
-    val delayed = futures.delayed(10.millis) {
-      val scope = span.makeCurrent()
-      try {
-        futureCurrentTime
-      } finally {
-        scope.close()
-      }
-    }
-    delayed.onComplete {
-      case Success(_) =>
-        span.end()
-      case Failure(e) =>
-        span.recordException(e)
-        span.setStatus(StatusCode.ERROR)
-        span.end()
-    }(ExecutionContext.parasitic)
-    delayed
-  }
-
-  // ----------------------------------------------------------------------
-  // A better fix to this is to ensure that all execution contexts can carry the otel context
-  // over asynchronous boundaries.
-
-  def contextAwareDelayedCurrentTime: Future[Long] = {
-    implicit val span = tracer.spanBuilder("contextAwareDelayedCurrentTime").startSpan()
-    val scope = span.makeCurrent()
-    try {
-      // contextAwareFutures knows about the activated span and will propagate it
-      // correctly between threads
-      val delayed = contextAwareFutures.delayed(10.millis) {
-        futureCurrentTime
-      }
-      delayed.onComplete {
-        case Success(_) =>
-          span.end()
-        case Failure(e) =>
-          span.recordException(e)
-          span.setStatus(StatusCode.ERROR)
-          span.end()
-      }(ExecutionContext.parasitic)
-      delayed
-    } finally {
-      scope.close()
-    }
-  }
-
 }
 
 object MyService {

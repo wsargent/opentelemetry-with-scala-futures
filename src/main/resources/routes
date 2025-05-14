@@ -1,0 +1,5 @@
+GET /               controllers.HomeController.index
+GET /sync           controllers.HomeController.sync
+GET /future         controllers.HomeController.future
+
+GET /cat            controllers.HomeController.cat

@@ -122,35 +122,29 @@ Note that this is distinct from the `io.opentelemetry.context.enableStrictContex
 
 ## Design
 
-This section will walk through places where the instrumentation does not cover asynchronous code, and show some workarounds.
+This section will walk through places where instrumentation can be a little tricky.
 
-### Assertions
-
-When writing your code, you will want to ensure that you have as little work as possible to find out when stuff has gone wrong.  The fastest way to do this is to ensure that you can assert a `Span` exists.
-
-```scala
-  private def assertSpan()(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
-    assertSpan(Span.current)
-  }
-
-  private def assertSpan(span: Span)(implicit enclosing: Enclosing, line: sourcecode.Line): Span = {
-    if (!span.isRecording) {
-      throw new IllegalStateException(s"We don't have a current span from ${enclosing.value} line ${line.value}!")
-    }
-    span
-  }
-```
-
-We'll then create a `getCurrentTime` method in a service
+We'll then create a `getCurrentTime` method in a service:
 
 ```scala
 @Singleton
 class MyService {
-  def getCurrentTime(implicit enc: sourcecode.Enclosing, line: sourcecode.Line): Long = {
-    assertSpan()
 
+  def getCurrentTime: Long = {
+    val span = Span.current()
+    if (span.getSpanContext == SpanContext.getInvalid) {
+      throw new IllegalStateException("getCurrentTime: no active span!")
+    }
+
+    // On shutdown, threads will still be active but will get non-writable spans :-(
     val result = System.currentTimeMillis()
-    logger.debug(s"Rendered: $result")
+    if (span.isRecording) {
+      val attributes = Attributes.of[java.lang.Long](resultKey, result)
+      span.addEvent("getCurrentTime", attributes)
+    } else {
+      logger.warn("getCurrentTime: span is read only! {}", span)
+    }
+    logger.debug("getCurrentTime: {}", "result" -> result)
     result
   }
 }
@@ -225,135 +219,45 @@ class MyServiceSpec {
 }
 ```
 
-### Delayed Futures
+## Creating a Request Scope with OpenTelemetry
 
-So far, so good.  But what if we change the code to delay the future slightly?  Using the `play.api.libs.concurrent.Futures` class, we'll delay the future by 10 milliseconds:
+One neat thing you can do is abuse the Baggage functionality to implement request scoped components in Guice.
+
+To do this, you need to set a `RequestScopeFilter` to set up the baggage with the current request id:
 
 ```scala
-class MyService @Inject()(futures: Futures)(implicit ec: ExecutionContext) {
-  // ...
-  
-  def brokenDelayedCurrentTime: Future[Long] = {
-    val span = tracer.spanBuilder("brokenDelayedCurrentTime").startSpan()
-    val scope = span.makeCurrent()
-    try {
-      val delayed = futures.delayed(10.millis) {
-        futureCurrentTime
-      }
-      delayed.onComplete {
-        case Success(_) =>
-          span.end()
-        case Failure(e) =>
-          span.recordException(e)
-          span.setStatus(StatusCode.ERROR)
-          span.end()
-      }
-      delayed
-    } finally {
-      scope.close()
+class RequestScopeFilter @Inject()(tracer: Tracer, requestScope: RequestScope, injector: Injector) extends EssentialFilter with Logging {
+
+  override def apply(next: EssentialAction): EssentialAction = { rh =>
+    val requestId = requireNonNull(rh.id.toString)
+    val baggage = Baggage.builder().put("request_id", requestId).build()
+    val baggageScope = baggage.storeInContext(Context.current()).makeCurrent
+
+    // Seed the scope with the current request
+    requestScope.seed(Key.get(classOf[RequestHeader]), rh)
+
+    implicit val ec: ExecutionContext = ExecutionContext.parasitic
+    next(rh).map { result =>
+      requestScope.cleanupRequest(requestId)
+      baggageScope.close()
+      result
+    }.recover {
+      case e: Exception =>
+        requestScope.cleanupRequest(requestId)
+        baggageScope.close()
+        throw e
     }
   }
 }
 ```
 
-This will fail.  The scope does not propagate properly between the `delayed` call to the future.
+and then you can look up the request later as long as you're in the same baggage context:
 
 ```scala
-class MyServiceSpec {
-  // ...
-  
-  "fail with brokenDelayedCurrentTime because it activates outside the future" in {
-    val myService = inject[MyService]
-    myService.brokenDelayedCurrentTime.failed.futureValue mustBe an[IllegalStateException]
-  }
-}
-```
-
-It's possible to fix this by activating the scope inside the delayed block:
-
-```scala
-futures.delayed(10.millis) {
-  val scope = span.makeCurrent()
-  try {
-    futureCurrentTime
-  } finally {
-    scope.close()
-  }
-}
-```
-
-But this doesn't really address the underlying problem -- why does this happen?
-
-The reason why is that the `Futures` class uses the `after` pattern internally:
-
-```scala
-class DefaultFutures @Inject() (actorSystem: ActorSystem) extends Futures {
-  // ...
-  override def delayed[A](duration: FiniteDuration)(f: => Future[A]): Future[A] = {
-    implicit val ec = actorSystem.dispatcher
-    org.apache.pekko.pattern.after(duration, actorSystem.scheduler)(f)
-  }
-}
-```
-
-This takes an implicit `ExecutionContext` which is passed through to the after pattern.  To fix this, we must tell `after` to use an execution context that is aware of the current `Context` and will call `context.wrap`:
-
-```scala
-class MyFutures @Inject()(actorSystem: ActorSystem) {
-
-  def delayed[A](duration: FiniteDuration)(f: => Future[A]): Future[A] = {
-    val context = Context.current()
-    implicit val ec: ExecutionContextExecutor = new TracingExecutionContext(actorSystem.dispatcher, context)
-    org.apache.pekko.pattern.after(duration, actorSystem.scheduler)(f)
-  }
-
-  class TracingExecutionContext(executor: ExecutionContextExecutor, context: Context) extends ExecutionContextExecutor {
-    override def reportFailure(cause: Throwable): Unit = executor.reportFailure(cause)
-    override def execute(command: Runnable): Unit = executor.execute(context.wrap(command))
-  }
-}
-```
-
-After doing this, we can see that the code works correctly:
-
-```scala
-class MyService @Inject()(contextAwareFutures: MyFutures)(implicit ec: ExecutionContext) {
-  
-  def contextAwareDelayedCurrentTime: Future[Long] = {
-    val span = tracer.spanBuilder("contextAwareDelayedCurrentTime").startSpan()
-    val scope = span.makeCurrent()
-    try {
-      // contextAwareFutures knows about the activated span and will propagate it
-      // correctly between threads
-      val delayed = contextAwareFutures.delayed(10.millis) {
-        futureCurrentTime
-      }
-      delayed.onComplete {
-        case Success(_) =>
-          span.end()
-        case Failure(e) =>
-          span.recordException(e)
-          span.setStatus(StatusCode.ERROR)
-          span.end()
-      }
-      delayed
-    } finally {
-      scope.close()
-    }
-  }
-}
-```
-
-And the given test:
-
-```scala
-class MyServiceSpec {
-  // ...
-  "work with a Futures that is context aware" in {
-    val myService = inject[MyService]
-    whenReady(myService.contextAwareDelayedCurrentTime) {
-      _ > 0 mustBe true
-    }
+class RequestLookup @Inject()(requestScope: RequestScope) {
+  // Retrieve the current request from the RequestScope
+  def request: RequestHeader = {
+    requestScope.get(Key.get(classOf[RequestHeader]))
   }
 }
 ```
